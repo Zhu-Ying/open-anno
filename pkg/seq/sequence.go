@@ -5,7 +5,42 @@ import (
 	"fmt"
 	"open-anno/pkg"
 	"regexp"
+
+	"github.com/brentp/faidx"
 )
+
+func Fetch(fai *faidx.Faidx, chrom string, start int, end int) (string, error) {
+	var sequence string
+	var err error
+	chrom = pkg.FormatChrom(chrom)
+	if chrom == "M" || chrom == "MT" {
+		sequence, err = fai.Get("M", start, end)
+		if err != nil {
+			sequence, err = fai.Get("MT", start, end)
+			if err != nil {
+				sequence, err = fai.Get("chrM", start, end)
+				if err != nil {
+					sequence, err = fai.Get("chrMT"+chrom, start, end)
+				}
+			}
+		}
+	} else {
+		sequence, err = fai.Get(chrom, start, end)
+		if err != nil {
+			sequence, err = fai.Get("chr"+chrom, start, end)
+		}
+	}
+	return sequence, err
+}
+
+// RevComp 反向互补
+func Reverse(sequence string) string {
+	var buffer bytes.Buffer
+	for i := len(sequence) - 1; i >= 0; i-- {
+		buffer.WriteByte(sequence[i])
+	}
+	return buffer.String()
+}
 
 // RevComp 反向互补
 func RevComp(sequence string) string {
@@ -40,7 +75,7 @@ func Translate(sequence string, mt bool) string {
 func AAName[T byte | string](bases T, aashort bool) string {
 	var buffer bytes.Buffer
 	sequence := string(bases)
-	for i := 0; i < len(sequence); i += 3 {
+	for i := 0; i < len(sequence); i++ {
 		if aashort {
 			buffer.WriteByte(sequence[i])
 		} else {
@@ -72,6 +107,15 @@ func Insert(sequence string, pos int, bases string) string {
 func Delete(sequence string, start int, end int) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(sequence[0 : start-1])
+	buffer.WriteString(sequence[end:])
+	return buffer.String()
+}
+
+// Substitute2 替换碱基
+func Substitute2(sequence string, start int, end int, alt string) string {
+	var buffer bytes.Buffer
+	buffer.WriteString(sequence[0 : start-1])
+	buffer.WriteString(alt)
 	buffer.WriteString(sequence[end:])
 	return buffer.String()
 }
